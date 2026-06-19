@@ -48,7 +48,7 @@ const WEATHER_LABELS = {
 export default function IncidentForm({ meta, onSubmit, loading }) {
   const [address, setAddress] = useState("");
   const [cause, setCause] = useState("vehicle_breakdown");
-  const [priority, setPriority] = useState("High");
+  const [priority, setPriority] = useState("Low");
   const [weather, setWeather] = useState("clear");
   const [tod, setTod] = useState("midday_offpeak");
   const [closure, setClosure] = useState(false);
@@ -202,16 +202,16 @@ export default function IncidentForm({ meta, onSubmit, loading }) {
         </div>
 
         {/* Spacer pushes the submit to the bottom but never below the panel */}
-        <div className="flex-1 min-h-0" />
+        <div className="flex-1 min-h-[8px]" />
 
         <Button
           type="submit"
           disabled={loading || !address.trim()}
           data-testid={TCIE.submitBtn}
-          className="w-full h-10 bg-[var(--navy)] hover:bg-[var(--navy-2)] text-white gov-btn rounded-md disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2 shrink-0"
+          className="w-full h-12 bg-[var(--navy)] hover:bg-[var(--navy-2)] text-white gov-btn rounded-md disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2 shrink-0 text-[13px] leading-none"
         >
-          <PaperPlaneTilt size={15} weight="fill" />
-          {loading ? "Dispatching…" : "Predict & Dispatch"}
+          <PaperPlaneTilt size={16} weight="fill" />
+          <span>{loading ? "Dispatching…" : "Predict & Dispatch"}</span>
         </Button>
       </form>
     </section>
