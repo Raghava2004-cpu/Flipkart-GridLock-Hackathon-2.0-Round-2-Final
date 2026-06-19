@@ -9,84 +9,127 @@ const sevColor = {
   Critical: "#c0392b",
 };
 
-// Compact glyph paths (drawn inside an 18×18 box) per event cause.
-// Kept stroke-only / mono-fill so they stay legible at small sizes.
+/**
+ * Event-cause glyphs. Each is a self-contained SVG fragment drawn inside an 18×18
+ * viewBox using `currentColor`-style fills/strokes that we substitute with the
+ * severity colour at render time. Designed to be unmistakable at 24px.
+ */
 const causeGlyph = {
-  vehicle_breakdown:
-    "M2 12 L2 9 L4 8 L5 5 L13 5 L14 8 L16 9 L16 12 L14 12 A2 2 0 1 1 10 12 L8 12 A2 2 0 1 1 4 12 Z",
-  accident:
-    "M9 1 L17 17 L1 17 Z M9 7 L9 12 M9 14 L9 15", // warning triangle + bang
-  tree_fall:
-    "M9 2 L4 8 L6 8 L2 13 L7 13 L7 17 L11 17 L11 13 L16 13 L12 8 L14 8 Z",
-  public_event:
-    "M9 4 A2 2 0 1 1 9 8 A2 2 0 1 1 9 4 M5 16 C5 12 13 12 13 16 Z", // person
-  water_logging:
-    "M9 2 C9 2 3 10 3 13 A6 6 0 0 0 15 13 C15 10 9 2 9 2 Z", // droplet
-  pot_holes:
-    "M2 13 Q9 6 16 13 M5 13 L13 13", // road bump
-  congestion:
-    "M2 6 L16 6 M2 10 L16 10 M2 14 L16 14", // three lanes
-  construction:
-    "M9 2 L15 14 L3 14 Z M7 11 L11 11", // hazard cone
-  road_conditions:
-    "M5 2 L7 16 M11 2 L13 16 M3 9 L15 9", // road
-  vip_movement:
-    "M9 2 L11 7 L16 7 L12 11 L14 16 L9 13 L4 16 L6 11 L2 7 L7 7 Z", // star
-  procession:
-    "M5 2 L5 17 M5 3 L14 3 L11 7 L14 11 L5 11", // flag
-  protest:
-    "M5 2 L5 17 M5 3 L14 3 L11 7 L14 11 L5 11", // flag (same)
-  debris:
-    "M3 14 L8 6 L13 14 Z M9 9 L9 12", // triangle
-  fog_low_visibility:
-    "M3 11 A3 3 0 0 1 6 8 A4 4 0 0 1 14 8 A3 3 0 0 1 14 14 L5 14 A2 2 0 0 1 3 11 Z", // cloud
-  political_rally:
-    "M3 9 L10 5 L10 14 Z M11 7 L14 7 M11 9 L14 9 M11 11 L14 11", // megaphone
-  test_demo:
-    "M7 2 L11 2 M9 2 L9 8 L4 15 L14 15 L9 8", // flask
-  others:
-    "M9 2 A7 7 0 1 1 9 16 A7 7 0 1 1 9 2 M9 6 L9 11 M9 13 L9 14", // info
+  // Wrench (vehicle breakdown)
+  vehicle_breakdown: `
+    <path d='M11.5 2.5 a3.5 3.5 0 0 0-3 5.3 L2.5 13.8 l1.7 1.7 L10 9.7 a3.5 3.5 0 0 0 5-4.2 l-2 2 l-1.5-1.5 l2-2 a3.5 3.5 0 0 0-2-1.5 Z' fill='COLOR'/>`,
+  // Warning triangle with bang (accident)
+  accident: `
+    <path d='M9 1.5 L16.8 16 L1.2 16 Z' fill='COLOR'/>
+    <rect x='8.2' y='6' width='1.6' height='5.4' fill='white'/>
+    <rect x='8.2' y='12.6' width='1.6' height='1.6' fill='white'/>`,
+  // Tree
+  tree_fall: `
+    <path d='M9 1.5 L4 7 L6 7 L3 11.5 L7 11.5 L7 13 L11 13 L11 11.5 L15 11.5 L12 7 L14 7 Z' fill='COLOR'/>
+    <rect x='8' y='13' width='2' height='4' fill='COLOR'/>`,
+  // Person (public event)
+  public_event: `
+    <circle cx='9' cy='5' r='2.4' fill='COLOR'/>
+    <path d='M3.5 16 C3.5 11.5 14.5 11.5 14.5 16 Z' fill='COLOR'/>`,
+  // Droplet (water logging)
+  water_logging: `
+    <path d='M9 1.5 C9 1.5 3 9.5 3 13 a6 6 0 0 0 12 0 C15 9.5 9 1.5 9 1.5 Z' fill='COLOR'/>`,
+  // Road bump (pot holes)
+  pot_holes: `
+    <path d='M1.5 14 Q9 4 16.5 14 Z' fill='COLOR'/>
+    <circle cx='6.5' cy='10' r='1' fill='white'/>
+    <circle cx='11.5' cy='10' r='1' fill='white'/>`,
+  // 3 stacked traffic lanes (congestion)
+  congestion: `
+    <rect x='2' y='4' width='14' height='2.4' rx='1' fill='COLOR'/>
+    <rect x='2' y='7.8' width='14' height='2.4' rx='1' fill='COLOR'/>
+    <rect x='2' y='11.6' width='14' height='2.4' rx='1' fill='COLOR'/>`,
+  // Hazard cone (construction)
+  construction: `
+    <path d='M9 1.5 L14.5 15 L3.5 15 Z' fill='COLOR'/>
+    <rect x='4.4' y='10.5' width='9.2' height='1.4' fill='white'/>
+    <rect x='5.6' y='6.8' width='6.8' height='1.4' fill='white'/>`,
+  // Road slab
+  road_conditions: `
+    <path d='M3 2 L15 2 L13 16 L5 16 Z' fill='COLOR'/>
+    <rect x='8.4' y='3.5' width='1.2' height='3' fill='white'/>
+    <rect x='8.4' y='8' width='1.2' height='3' fill='white'/>
+    <rect x='8.4' y='12.5' width='1.2' height='3' fill='white'/>`,
+  // Star (VIP)
+  vip_movement: `
+    <path d='M9 1.5 L11.3 6.7 L17 7.3 L12.7 11.1 L14 16.5 L9 13.6 L4 16.5 L5.3 11.1 L1 7.3 L6.7 6.7 Z' fill='COLOR'/>`,
+  // Flag (procession)
+  procession: `
+    <rect x='3.6' y='1.5' width='1.6' height='15' fill='COLOR'/>
+    <path d='M5.2 2 L15 2 L12 6 L15 10 L5.2 10 Z' fill='COLOR'/>`,
+  // Fist / raised flag (protest)
+  protest: `
+    <rect x='3.6' y='1.5' width='1.6' height='15' fill='COLOR'/>
+    <path d='M5.2 2 L15 2 L12 6 L15 10 L5.2 10 Z' fill='COLOR'/>
+    <circle cx='10' cy='13.5' r='1.4' fill='COLOR'/>`,
+  // Debris (triangle + chunks)
+  debris: `
+    <path d='M2 15 L7 6 L12 15 Z' fill='COLOR'/>
+    <rect x='12' y='11' width='4' height='4' fill='COLOR'/>`,
+  // Cloud (fog)
+  fog_low_visibility: `
+    <path d='M3 11.5 a3 3 0 0 1 3-3 a4 4 0 0 1 7.5 0 a2.8 2.8 0 0 1 1 5.4 H4 a2 2 0 0 1-1-2.4 Z' fill='COLOR'/>
+    <rect x='3' y='14.6' width='12' height='1.2' fill='COLOR'/>`,
+  // Megaphone (rally)
+  political_rally: `
+    <path d='M2 7 L10 4 L10 14 L2 11 Z' fill='COLOR'/>
+    <rect x='10.5' y='7.5' width='3' height='3' fill='COLOR'/>
+    <path d='M14 5 L16 4 M14 9 L16 9 M14 13 L16 14' stroke='COLOR' stroke-width='1.6' stroke-linecap='round'/>`,
+  // Flask (test/demo)
+  test_demo: `
+    <rect x='6.5' y='1.5' width='5' height='1.4' fill='COLOR'/>
+    <path d='M7 2.9 L7 7.5 L3.5 15 L14.5 15 L11 7.5 L11 2.9 Z' fill='COLOR'/>
+    <circle cx='8' cy='12' r='0.8' fill='white'/>
+    <circle cx='10.5' cy='13' r='0.6' fill='white'/>`,
+  // Info circle (others)
+  others: `
+    <circle cx='9' cy='9' r='7.4' fill='COLOR'/>
+    <rect x='8.2' y='7' width='1.6' height='6' fill='white'/>
+    <rect x='8.2' y='4.5' width='1.6' height='1.6' fill='white'/>`,
 };
 
-function eventGlyphSvg(cause) {
-  return causeGlyph[cause] || causeGlyph.others;
+function eventGlyphSvg(cause, color) {
+  const raw = causeGlyph[cause] || causeGlyph.others;
+  return raw.replaceAll("COLOR", color);
 }
 
 /**
- * Clean professional pin (severity-coloured) with an event-cause glyph
- * inside the white head, plus a navy ID-badge label on top.
- * Compound incidents get a red halo ring.
+ * Severity-coloured teardrop pin with a large white head containing the
+ * event-cause glyph in the severity colour. Compound incidents get a red halo.
+ * Pin size: 54×72 so the glyph is unmistakable at default Mappls zoom levels.
  */
 function pinSvg(color, label, compound, cause) {
   const halo = compound
-    ? `<circle cx='22' cy='22' r='18' fill='none' stroke='#c0392b' stroke-width='2' opacity='0.85'/>`
+    ? `<circle cx='27' cy='26' r='22' fill='none' stroke='#c0392b' stroke-width='2.5' opacity='0.85'/>`
     : "";
-  const glyph = eventGlyphSvg(cause);
-  // Glyph is drawn in a 18x18 box, translated/scaled into the pin head (radius ~6.5 at cx=22 cy=20).
-  // Effective area: 14x14 centered at (22,20) → translate(13,11) scale(0.9)
-  return `<svg xmlns='http://www.w3.org/2000/svg' width='40' height='54' viewBox='0 0 44 60'>
+  const glyph = eventGlyphSvg(cause, color);
+  // Pin head circle is centred at (27, 24) with radius 12. Glyph viewBox 18x18 is
+  // scaled to ~22px and translated so its centre aligns to (27, 24).
+  return `<svg xmlns='http://www.w3.org/2000/svg' width='54' height='72' viewBox='0 0 54 72'>
     <defs>
       <filter id='shd' x='-30%' y='-20%' width='160%' height='150%'>
-        <feDropShadow dx='0' dy='2' stdDeviation='1.6' flood-color='#000' flood-opacity='0.35'/>
+        <feDropShadow dx='0' dy='2' stdDeviation='1.8' flood-color='#000' flood-opacity='0.38'/>
       </filter>
     </defs>
     ${halo}
     <g filter='url(#shd)'>
-      <path d='M22 4
-               C13 4 6 11 6 20
-               C6 32 22 54 22 54
-               C22 54 38 32 38 20
-               C38 11 31 4 22 4 Z'
-            fill='${color}' stroke='#ffffff' stroke-width='2'/>
-      <circle cx='22' cy='20' r='8.5' fill='#ffffff'/>
-      <g transform='translate(13,11) scale(0.95)'>
-        <path d='${glyph}' fill='none' stroke='${color}' stroke-width='1.8'
-              stroke-linecap='round' stroke-linejoin='round'/>
-      </g>
+      <path d='M27 4
+               C16 4 8 12 8 23
+               C8 38 27 66 27 66
+               C27 66 46 38 46 23
+               C46 12 38 4 27 4 Z'
+            fill='${color}' stroke='#ffffff' stroke-width='2.4'/>
+      <circle cx='27' cy='24' r='12' fill='#ffffff'/>
+      <g transform='translate(15,12) scale(1.33)'>${glyph}</g>
     </g>
     <g>
-      <rect x='2' y='-2' rx='3' ry='3' width='40' height='12' fill='#0b3d91' stroke='#ffffff' stroke-width='1'/>
-      <text x='22' y='7' text-anchor='middle' font-family='Inter, sans-serif'
+      <rect x='5' y='-2' rx='3' ry='3' width='44' height='12' fill='#0b3d91' stroke='#ffffff' stroke-width='1'/>
+      <text x='27' y='7' text-anchor='middle' font-family='Inter, sans-serif'
             font-size='9' font-weight='700' fill='#ffffff' letter-spacing='1'>#${label}</text>
     </g>
   </svg>`;

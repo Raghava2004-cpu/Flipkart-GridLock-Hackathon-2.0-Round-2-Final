@@ -26,7 +26,6 @@ export default function CommandCenter() {
   const { data: stats } = useQuery({
     queryKey: ["stats"], queryFn: fetchStats, refetchInterval: REFRESH_MS,
   });
-  // Model status is still fetched (Analytics tab uses it) but no longer rendered here.
   useQuery({ queryKey: ["model"], queryFn: fetchModelStatus, refetchInterval: REFRESH_MS });
 
   const createMut = useMutation({
@@ -82,60 +81,61 @@ export default function CommandCenter() {
   );
 
   return (
-    <div className="h-screen w-full overflow-hidden flex flex-col bg-[var(--bg)]">
-      <HeaderBar
-        stats={stats}
-        compoundCount={compoundCount}
-        onClearAll={() => clearMut.mutate()}
-        tab={tab}
-        onTabChange={setTab}
-      />
+    <div className="min-h-screen w-full flex flex-col bg-[var(--bg)]">
+      {/* Sticky header so it stays accessible while scrolling */}
+      <div className="sticky top-0 z-30">
+        <HeaderBar
+          stats={stats}
+          compoundCount={compoundCount}
+          onClearAll={() => clearMut.mutate()}
+          tab={tab}
+          onTabChange={setTab}
+        />
+      </div>
+
       {tab === "live" ? (
-        <div
-          className="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden min-h-0"
-          style={{ gridTemplateRows: "minmax(0, 1.55fr) minmax(0, 1fr)" }}
-        >
-          {/* TOP-LEFT — Map (now taller, ~60% of viewport) */}
-          <main className="col-span-8 row-span-1 relative rounded-md overflow-hidden gov-card min-h-0">
-            <MapplsMap incidents={active} stations={stations} />
-          </main>
+        <main className="flex-1 flex flex-col gap-4 p-4">
+          {/* ROW 1 — Map (col-8) + Incident Form (col-4) at a fixed working height */}
+          <section className="grid grid-cols-12 gap-4">
+            <div
+              className="col-span-12 lg:col-span-8 relative rounded-md overflow-hidden gov-card"
+              style={{ height: "min(640px, 70vh)", minHeight: 460 }}
+            >
+              <MapplsMap incidents={active} stations={stations} />
+            </div>
+            <div className="col-span-12 lg:col-span-4">
+              <IncidentForm
+                meta={meta}
+                onSubmit={(payload) => createMut.mutate(payload)}
+                loading={createMut.isPending}
+              />
+            </div>
+          </section>
 
-          {/* TOP-RIGHT — Incident form (auto-fills the taller row → Predict button very prominent) */}
-          <aside className="col-span-4 row-span-1 min-h-0">
-            <IncidentForm
-              meta={meta}
-              onSubmit={(payload) => createMut.mutate(payload)}
-              loading={createMut.isPending}
-            />
-          </aside>
+          {/* ROW 2 — KPI strip, 4 cards full-width */}
+          <section>
+            <KpiStrip stats={stats} compoundCount={compoundCount} />
+          </section>
 
-          {/* BOTTOM-LEFT — Active Queue */}
-          <section className="col-span-8 row-span-1 overflow-hidden min-h-0">
+          {/* ROW 3 — Active Queue (full width, grows with content — page scrolls) */}
+          <section>
             <IncidentQueue
               incidents={active}
               onResolve={(id, actual) => resolveMut.mutate({ id, actual })}
               resolving={resolveMut.isPending}
             />
           </section>
-
-          {/* BOTTOM-RIGHT — KPIs only (RL feedback loop removed per request) */}
-          <aside className="col-span-4 row-span-1 min-h-0">
-            <KpiStrip stats={stats} compoundCount={compoundCount} />
-          </aside>
-        </div>
+        </main>
       ) : (
         <AnalyticsView />
       )}
 
-      {/* Footer */}
       <footer className="border-t border-[var(--border)] bg-white px-5 py-2 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
         <span>
           © {new Date().getFullYear()} Bengaluru City Police · Traffic Management Centre &nbsp;|&nbsp;
           Government of Karnataka
         </span>
-        <span className="font-mono">
-          TCIE v2.0 · powered by Mappls · ensemble ML + RL
-        </span>
+        <span>TCIE v2.0 · powered by Mappls · ensemble ML + RL</span>
       </footer>
     </div>
   );

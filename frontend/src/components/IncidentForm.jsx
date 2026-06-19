@@ -73,7 +73,7 @@ export default function IncidentForm({ meta, onSubmit, loading }) {
   };
 
   return (
-    <section className="gov-card overflow-hidden flex flex-col h-full">
+    <section className="gov-card overflow-hidden flex flex-col">
       {/* Header band */}
       <div className="px-4 py-2 border-b border-[var(--border)] bg-[var(--navy-50)] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -88,7 +88,7 @@ export default function IncidentForm({ meta, onSubmit, loading }) {
       <form
         onSubmit={submit}
         data-testid={TCIE.form}
-        className="flex flex-col gap-2.5 p-3 flex-1 min-h-0"
+        className="flex flex-col gap-2.5 p-4"
       >
         <div className="flex flex-col gap-1">
           <Label className={labelCls}>Location / Address</Label>
@@ -201,14 +201,12 @@ export default function IncidentForm({ meta, onSubmit, loading }) {
           </label>
         </div>
 
-        {/* Spacer pushes the submit to the bottom but never below the panel */}
-        <div className="flex-1 min-h-[8px]" />
-
+        {/* Predict button — sits immediately after the form fields, inside the card */}
         <Button
           type="submit"
           disabled={loading || !address.trim()}
           data-testid={TCIE.submitBtn}
-          className="w-full h-12 bg-[var(--navy)] hover:bg-[var(--navy-2)] text-white gov-btn rounded-md disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2 shrink-0 text-[13px] leading-none"
+          className="w-full h-11 mt-1 bg-[var(--navy)] hover:bg-[var(--navy-2)] text-white gov-btn rounded-md disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2 text-[13px] leading-none"
         >
           <PaperPlaneTilt size={16} weight="fill" />
           <span>{loading ? "Dispatching…" : "Predict & Dispatch"}</span>

@@ -23,7 +23,7 @@ function Block({ label, value, sub, color, accent, icon: Icon, testId }) {
 export default function KpiStrip({ stats, compoundCount }) {
   const s = stats || {};
   return (
-    <section className="grid grid-cols-2 gap-3 h-full" style={{ gridAutoRows: "1fr" }}>
+    <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
       <Block
         testId={TCIE.kpiActive}
         label="Active Incidents"

@@ -165,19 +165,19 @@ function IncidentCard({ inc, onResolve, resolving }) {
 
 export default function IncidentQueue({ incidents, onResolve, resolving }) {
   return (
-    <section className="h-full gov-card overflow-hidden flex flex-col">
+    <section className="gov-card overflow-hidden flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]">
-        <h2 className="font-serif text-[15px] font-semibold text-[var(--navy)] tracking-tight flex items-center gap-2">
+        <h2 className="text-[15px] font-semibold text-[var(--navy)] tracking-tight flex items-center gap-2">
           <ListBullets size={14} weight="bold" /> Active Incident Queue
         </h2>
-        <span className="text-[11px] font-mono text-[var(--text-muted)]">{incidents.length} live</span>
+        <span className="text-[11px] text-[var(--text-muted)]">{incidents.length} live</span>
       </div>
       <div
         data-testid="incident-queue"
-        className="flex-1 overflow-y-auto thin-scroll grid grid-cols-1 lg:grid-cols-2 gap-2.5 content-start p-3"
+        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 content-start p-3"
       >
         {incidents.length === 0 ? (
-          <div className="lg:col-span-2 text-[12px] text-[var(--text-muted)] uppercase tracking-[0.2em] text-center py-10 border border-dashed border-[var(--border)] rounded-md bg-[var(--surface-2)]/50">
+          <div className="md:col-span-2 xl:col-span-3 text-[12px] text-[var(--text-muted)] uppercase tracking-[0.2em] text-center py-10 border border-dashed border-[var(--border)] rounded-md bg-[var(--surface-2)]/50">
             no active incidents
           </div>
         ) : (
