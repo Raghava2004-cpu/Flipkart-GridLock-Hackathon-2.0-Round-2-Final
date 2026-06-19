@@ -1,0 +1,201 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Bengaluru Traffic Police · Congestion Intelligence Engine
+ * Light, official Government of Karnataka portal aesthetic.
+ * Palette: white surfaces · navy primary · saffron accent · IBM Plex Sans.
+ */
+
+:root {
+  /* Govt portal palette */
+  --bg: #f5f6f8;              /* page background — very light blue-grey */
+  --surface: #ffffff;         /* card surface */
+  --surface-2: #f1f3f6;       /* subtle inset */
+  --border: #d9dde3;          /* hairline */
+  --border-strong: #b9c0cb;
+  --text-primary: #0b1f3a;    /* near-black navy for readability */
+  --text-secondary: #3d4a5c;
+  --text-muted: #6b7589;
+
+  /* Karnataka / Govt accent system */
+  --navy: #0b3d91;            /* official navy — Bengaluru Traffic Police uniform blue */
+  --navy-2: #082c6b;
+  --navy-50: #e8eef9;
+  --saffron: #ff7a00;         /* India tricolour saffron */
+  --saffron-50: #fff1e0;
+  --india-green: #138808;
+  --india-green-50: #e6f5e7;
+
+  /* Severity */
+  --sev-low: #138808;
+  --sev-med: #e08e00;
+  --sev-high: #d35400;
+  --sev-critical: #c0392b;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.font-mono {
+  font-family: "IBM Plex Mono", ui-monospace, monospace !important;
+}
+.font-serif {
+  font-family: "IBM Plex Serif", Georgia, serif !important;
+}
+
+/* Tricolour stripe used as a govt-style affordance */
+.tricolor-bar {
+  height: 3px;
+  background: linear-gradient(
+    to right,
+    var(--saffron) 0%, var(--saffron) 33.33%,
+    #ffffff 33.33%, #ffffff 66.66%,
+    var(--india-green) 66.66%, var(--india-green) 100%
+  );
+  border-bottom: 1px solid var(--border);
+}
+
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.thin-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: #cdd3dd;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover { background: #aab2c0; background-clip: padding-box; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Red alert pulse — used for compound incidents */
+@keyframes redPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.35), inset 0 0 0 1px rgba(192, 57, 43, 0.55); }
+  50%      { box-shadow: 0 0 0 6px rgba(192, 57, 43, 0),    inset 0 0 0 1px rgba(192, 57, 43, 0.9); }
+}
+.alert-pulse { animation: redPulse 1.6s ease-in-out infinite; }
+
+/* Subtle white-flash for RL feedback */
+@keyframes rlFlash {
+  0%   { border-color: var(--border); }
+  50%  { border-color: var(--navy); box-shadow: 0 0 0 2px rgba(11,61,145,0.18); }
+  100% { border-color: var(--border); }
+}
+.rl-flash { animation: rlFlash 0.7s ease-out; }
+
+/* Mappls popup tweaks — light card with navy accents */
+.mappls-popup-content,
+.mappls-popup-wrapper,
+.leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  color: var(--text-primary) !important;
+  font-family: "IBM Plex Sans", sans-serif !important;
+  border-radius: 4px !important;
+  box-shadow: 0 6px 18px rgba(11, 31, 58, 0.12) !important;
+}
+
+/* Active-incident map markers (used as fallback ring) */
+.tcie-marker {
+  width: 14px; height: 14px; border-radius: 9999px;
+  border: 2px solid white; box-shadow: 0 0 0 2px rgba(11,31,58,0.25);
+}
+.tcie-marker.lvl-low      { background: var(--sev-low); }
+.tcie-marker.lvl-medium   { background: var(--sev-med); }
+.tcie-marker.lvl-high     { background: var(--sev-high); }
+.tcie-marker.lvl-critical { background: var(--sev-critical); }
+.tcie-marker.compound     { animation: redPulse 1.4s ease-in-out infinite; }
+.tcie-marker-station {
+  width: 8px; height: 8px; border-radius: 9999px;
+  background: var(--navy); border: 1px solid white;
+}
+
+/* Govt-style pill button (replaces the old "tactical-btn") */
+.gov-btn {
+  font-family: "IBM Plex Sans", sans-serif;
+  letter-spacing: 0.02em;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+}
+/* Backward-compat alias so any leftover tactical-btn keeps working */
+.tactical-btn {
+  font-family: "IBM Plex Sans", sans-serif;
+  letter-spacing: 0.02em;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+/* Section eyebrow label */
+.eyebrow {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Card */
+.gov-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.gov-card-inset {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* Hide platform badge */
+#emergent-badge,
+[id*="emergent-badge"],
+[class*="emergent-badge"],
+[class*="EmergentBadge"],
+iframe[src*="emergent"],
+a[href*="emergent.sh"],
+a[href*="emergent.dev"],
+a[href*="emergent.app"],
+div[aria-label*="Emergent" i],
+div[title*="Emergent" i] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+@layer base {
+  :root {
+    --background: 220 14% 97%;
+    --foreground: 215 64% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 64% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 64% 14%;
+    --primary: 219 86% 30%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 95%;
+    --secondary-foreground: 215 64% 14%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 9% 45%;
+    --accent: 28 100% 50%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 7 65% 47%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 218 16% 87%;
+    --input: 220 14% 95%;
+    --ring: 219 86% 30%;
+    --radius: 0.375rem;
+  }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
+}
