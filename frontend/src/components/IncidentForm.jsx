@@ -11,7 +11,7 @@ import { CloudRain, MapPinLine, WarningOctagon, PaperPlaneTilt } from "@phosphor
 
 const labelCls = "eyebrow";
 const inputCls =
-  "bg-white border-[var(--border)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] h-10 rounded-md focus:border-[var(--navy)] focus:ring-1 focus:ring-[var(--navy)]";
+  "bg-white border-[var(--border)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] h-9 rounded-md focus:border-[var(--navy)] focus:ring-1 focus:ring-[var(--navy)]";
 
 const CAUSE_LABELS = {
   vehicle_breakdown: "Vehicle Breakdown",
@@ -32,14 +32,12 @@ const CAUSE_LABELS = {
   test_demo: "Test / Demo",
   others: "Others",
 };
-
 const TOD_LABELS = {
   morning_peak: "Morning Peak (07-10)",
   midday_offpeak: "Midday Off-peak",
   evening_peak: "Evening Peak (17-21)",
   night: "Night (21-06)",
 };
-
 const WEATHER_LABELS = {
   clear: "Clear",
   rain: "Light Rain",
@@ -75,20 +73,24 @@ export default function IncidentForm({ meta, onSubmit, loading }) {
   };
 
   return (
-    <section className="gov-card overflow-hidden">
+    <section className="gov-card overflow-hidden flex flex-col h-full">
       {/* Header band */}
-      <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--navy-50)] flex items-center justify-between">
+      <div className="px-4 py-2 border-b border-[var(--border)] bg-[var(--navy-50)] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <WarningOctagon size={16} weight="fill" className="text-[var(--saffron)]" />
-          <h2 className="font-serif text-[15px] font-semibold text-[var(--navy)] tracking-tight">
+          <WarningOctagon size={15} weight="fill" className="text-[var(--saffron)]" />
+          <h2 className="text-[14px] font-semibold text-[var(--navy)] tracking-tight">
             New Incident · Dispatch
           </h2>
         </div>
         <span className="eyebrow text-[var(--navy)]/70">Form · TCIE-01</span>
       </div>
 
-      <form onSubmit={submit} data-testid={TCIE.form} className="flex flex-col gap-3 p-4">
-        <div className="flex flex-col gap-1.5">
+      <form
+        onSubmit={submit}
+        data-testid={TCIE.form}
+        className="flex flex-col gap-2.5 p-3 flex-1 min-h-0"
+      >
+        <div className="flex flex-col gap-1">
           <Label className={labelCls}>Location / Address</Label>
           <div className="relative">
             <MapPinLine size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
@@ -102,8 +104,8 @@ export default function IncidentForm({ meta, onSubmit, loading }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="flex flex-col gap-1">
             <Label className={labelCls}>Event Cause</Label>
             <Select value={cause} onValueChange={setCause}>
               <SelectTrigger data-testid={TCIE.causeDropdown} className={inputCls}>
@@ -119,11 +121,11 @@ export default function IncidentForm({ meta, onSubmit, loading }) {
             </Select>
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <Label className={labelCls}>Priority</Label>
             <div
               data-testid={TCIE.priorityToggle}
-              className="flex bg-[var(--surface-2)] border border-[var(--border)] rounded-md overflow-hidden h-10"
+              className="flex bg-[var(--surface-2)] border border-[var(--border)] rounded-md overflow-hidden h-9"
             >
               {["High", "Low"].map((p) => (
                 <button
@@ -145,9 +147,9 @@ export default function IncidentForm({ meta, onSubmit, loading }) {
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <Label className={labelCls}>
-              <CloudRain size={12} className="inline mr-1" /> Weather
+              <CloudRain size={11} className="inline mr-1" /> Weather
             </Label>
             <Select value={weather} onValueChange={setWeather}>
               <SelectTrigger data-testid={TCIE.weatherDropdown} className={inputCls}>
@@ -163,7 +165,7 @@ export default function IncidentForm({ meta, onSubmit, loading }) {
             </Select>
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <Label className={labelCls}>Time of Day</Label>
             <Select value={tod} onValueChange={setTod}>
               <SelectTrigger data-testid={TCIE.todDropdown} className={inputCls}>
@@ -180,8 +182,8 @@ export default function IncidentForm({ meta, onSubmit, loading }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <label className="flex items-center justify-between bg-white border border-[var(--border)] rounded-md px-3 py-2.5 cursor-pointer hover:border-[var(--navy)] transition-colors">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex items-center justify-between bg-white border border-[var(--border)] rounded-md px-3 py-2 cursor-pointer hover:border-[var(--navy)] transition-colors">
             <span className={labelCls}>Road Closure</span>
             <Switch
               data-testid={TCIE.closureSwitch}
@@ -189,7 +191,7 @@ export default function IncidentForm({ meta, onSubmit, loading }) {
               onCheckedChange={setClosure}
             />
           </label>
-          <label className="flex items-center justify-between bg-white border border-[var(--border)] rounded-md px-3 py-2.5 cursor-pointer hover:border-[var(--navy)] transition-colors">
+          <label className="flex items-center justify-between bg-white border border-[var(--border)] rounded-md px-3 py-2 cursor-pointer hover:border-[var(--navy)] transition-colors">
             <span className={labelCls}>Weekend</span>
             <Switch
               data-testid={TCIE.weekendSwitch}
@@ -199,13 +201,16 @@ export default function IncidentForm({ meta, onSubmit, loading }) {
           </label>
         </div>
 
+        {/* Spacer pushes the submit to the bottom but never below the panel */}
+        <div className="flex-1 min-h-0" />
+
         <Button
           type="submit"
           disabled={loading || !address.trim()}
           data-testid={TCIE.submitBtn}
-          className="w-full h-11 mt-1 bg-[var(--navy)] hover:bg-[var(--navy-2)] text-white gov-btn rounded-md disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
+          className="w-full h-10 bg-[var(--navy)] hover:bg-[var(--navy-2)] text-white gov-btn rounded-md disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2 shrink-0"
         >
-          <PaperPlaneTilt size={16} weight="fill" />
+          <PaperPlaneTilt size={15} weight="fill" />
           {loading ? "Dispatching…" : "Predict & Dispatch"}
         </Button>
       </form>

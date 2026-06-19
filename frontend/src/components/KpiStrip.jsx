@@ -55,7 +55,7 @@ export default function KpiStrip({ stats, compoundCount }) {
         testId={TCIE.kpiOfficers}
         label="Officers Deployed"
         value={s.officers_deployed ?? 0}
-        sub={`${s.barricades_meters ?? 0} m barricades`}
+        sub={`${s.barricades_meters ?? 0} m barricades coverage`}
         color="text-[var(--navy)]"
         accent="text-[var(--navy)]"
         icon={UsersFour}

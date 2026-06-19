@@ -171,13 +171,13 @@ export default function MapplsMap({ incidents = [], stations = [] }) {
         data-testid="mappls-map"
       />
 
-      <div className="absolute top-2.5 left-2.5 right-2.5 z-10 flex items-center justify-between pointer-events-none">
+      <div className="absolute top-2.5 left-2.5 z-10 pointer-events-none">
         <div className="bg-white/95 backdrop-blur border border-[var(--border)] rounded-md px-3 py-1.5 text-[11px] font-semibold text-[var(--navy)] shadow-sm">
           <span className="eyebrow text-[var(--text-muted)] mr-2">Mappls</span>
           Bengaluru · Tactical View
-        </div>
-        <div className="bg-white/95 backdrop-blur border border-[var(--border)] rounded-md px-3 py-1.5 font-mono text-[11px] text-[var(--text-secondary)] shadow-sm">
-          incidents <b className="text-[var(--text-primary)]">{incidents.length}</b> · stations <b className="text-[var(--text-primary)]">{stations.length}</b>
+          <span className="ml-3 text-[var(--text-muted)] font-normal">
+            incidents <b className="text-[var(--text-primary)]">{incidents.length}</b> · stations <b className="text-[var(--text-primary)]">{stations.length}</b>
+          </span>
         </div>
       </div>
 

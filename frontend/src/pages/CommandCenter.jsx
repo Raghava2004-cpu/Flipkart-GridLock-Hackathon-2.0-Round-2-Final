@@ -96,14 +96,15 @@ export default function CommandCenter() {
         onTabChange={setTab}
       />
       {tab === "live" ? (
-        <div className="flex-1 grid grid-cols-12 grid-rows-2 gap-3 p-3 overflow-hidden">
+        <div className="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden min-h-0"
+             style={{ gridTemplateRows: "minmax(0, 1fr) minmax(0, 1fr)" }}>
           {/* TOP-LEFT — Map (big) */}
-          <main className="col-span-8 row-span-1 relative rounded-md overflow-hidden gov-card">
+          <main className="col-span-8 row-span-1 relative rounded-md overflow-hidden gov-card min-h-0">
             <MapplsMap incidents={active} stations={stations} />
           </main>
 
-          {/* TOP-RIGHT — Incident form */}
-          <aside className="col-span-4 row-span-1 overflow-y-auto thin-scroll">
+          {/* TOP-RIGHT — Incident form (auto-fills row, no scroll) */}
+          <aside className="col-span-4 row-span-1 min-h-0">
             <IncidentForm
               meta={meta}
               onSubmit={(payload) => createMut.mutate(payload)}
@@ -112,7 +113,7 @@ export default function CommandCenter() {
           </aside>
 
           {/* BOTTOM-LEFT — Active Queue (wide) */}
-          <section className="col-span-8 row-span-1 overflow-hidden">
+          <section className="col-span-8 row-span-1 overflow-hidden min-h-0">
             <IncidentQueue
               incidents={active}
               onResolve={(id, actual) => resolveMut.mutate({ id, actual })}
@@ -120,8 +121,8 @@ export default function CommandCenter() {
             />
           </section>
 
-          {/* BOTTOM-RIGHT — KPIs (2x2) + RL terminal */}
-          <aside className="col-span-4 row-span-1 flex flex-col gap-3 overflow-hidden">
+          {/* BOTTOM-RIGHT — KPIs + RL terminal (auto-fills row) */}
+          <aside className="col-span-4 row-span-1 flex flex-col gap-3 overflow-hidden min-h-0">
             <KpiStrip stats={stats} compoundCount={compoundCount} />
             <RLTerminal modelStatus={modelStatus} pulse={pulse} />
           </aside>

@@ -96,7 +96,7 @@ function IncidentCard({ inc, onResolve, resolving }) {
         <Row
           icon={ShieldCheck}
           label="Barricades"
-          value={`${inc.barricades_count ?? 0}  ·  ${inc.barricades_meters}m`}
+          value={inc.barricades_count ?? 0}
         />
         <Row icon={Crane} label="Cranes" value={inc.cranes} />
         <Row icon={FirstAid} label="Ambulance" value={inc.ambulances} />

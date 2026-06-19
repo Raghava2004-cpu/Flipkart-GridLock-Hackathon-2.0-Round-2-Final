@@ -34,3 +34,11 @@ Resume the Flipkart Gridlock Hackathon 2.0 (Round 2) project. The backend (FastA
 - P1: Officer login + role-based RESET (currently anyone with the URL can clear all)
 - P2: i18n — full Kannada UI strings
 - P2: Historical replay slider on the map
+
+## Iteration 2 (Jan 2026) — UI refinements
+- Removed `Prediction Ensemble · GBM+RF+Ridge` card from the bottom-right panel (ensemble weights still available via `/api/model/status` and on the Analytics page).
+- Map: merged the "incidents · stations" tally into the top-left Mappls label so the Mappls native 3D/fullscreen/zoom controls (top-right) are no longer occluded.
+- IncidentQueue card: barricades row now shows count only (was `count · Xm`).
+- IncidentForm: redesigned to fill its container with `flex-1` spacer so the Predict & Dispatch CTA sits at the bottom of the panel without internal scrolling, regardless of viewport height.
+- CommandCenter grid: changed to explicit `gridTemplateRows: minmax(0,1fr) minmax(0,1fr)` + `min-h-0` on every cell — sections now auto-adjust to any viewport size.
+- Typography: dropped IBM Plex Serif and IBM Plex Mono, unified everything to **Inter**. `.font-mono` and `.font-serif` utility aliases retained (mapped to Inter) for safety.
