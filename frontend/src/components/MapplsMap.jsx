@@ -142,6 +142,22 @@ function stationSvg() {
   </svg>`;
 }
 
+// Robustly remove a Mappls overlay (marker/circle). Different SDK builds expose
+// different APIs, so we try every known method.
+function destroyOverlay(obj, map) {
+  if (!obj) return;
+  try { if (typeof obj.remove === "function") obj.remove(); } catch {}
+  try { if (typeof obj.setMap === "function") obj.setMap(null); } catch {}
+  try { if (typeof obj.removeFromMap === "function") obj.removeFromMap(); } catch {}
+  try { if (map && typeof map.removeLayer === "function") map.removeLayer(obj); } catch {}
+  try { if (map && typeof map.removeMarker === "function") map.removeMarker(obj); } catch {}
+  // Fallback: yank the underlying DOM node if the SDK keeps a reference
+  try {
+    const el = obj._icon || obj._element || obj.element || obj.icon || obj._container;
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  } catch {}
+}
+
 export default function MapplsMap({ incidents = [], stations = [] }) {
   const containerId = "tcie-mappls-container";
   const mapRef = useRef(null);
@@ -187,7 +203,7 @@ export default function MapplsMap({ incidents = [], stations = [] }) {
 
   useEffect(() => {
     if (!ready || !mapRef.current || !window.mappls) return;
-    stationMarkersRef.current.forEach((m) => m.remove && m.remove());
+    stationMarkersRef.current.forEach((m) => destroyOverlay(m, mapRef.current));
     stationMarkersRef.current = [];
     stations.forEach((s) => {
       try {
@@ -205,9 +221,9 @@ export default function MapplsMap({ incidents = [], stations = [] }) {
 
   useEffect(() => {
     if (!ready || !mapRef.current || !window.mappls) return;
-    markersRef.current.forEach((m) => m.remove && m.remove());
+    markersRef.current.forEach((m) => destroyOverlay(m, mapRef.current));
     markersRef.current = [];
-    ringsRef.current.forEach((c) => c.remove && c.remove());
+    ringsRef.current.forEach((c) => destroyOverlay(c, mapRef.current));
     ringsRef.current = [];
 
     incidents.forEach((inc) => {
