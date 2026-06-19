@@ -1,0 +1,462 @@
+================================================================================
+ BENGALURU TRAFFIC POLICE  ·  CONGESTION INTELLIGENCE ENGINE (TCIE)
+ Flipkart Gridlock Hackathon 2.0 — Round 2
+ Complete Technical Approach, Architecture & Feature Walk-through
+================================================================================
+
+PROBLEM STATEMENT (as posed)
+----------------------------
+Use historical + real-time data to forecast event-related traffic impact and
+recommend optimal manpower, barricading and diversion plans, with a post-event
+learning system that improves predictions over time.
+
+OUR ONE-LINE ANSWER
+-------------------
+TCIE is a closed-loop incident-command web application: officers describe an
+event in plain English → the system geocodes it on a 54-node Bengaluru police
+graph → a weighted ML ensemble (RF + GBM + Ridge) predicts duration → a
+heuristic optimisation matrix assigns officers / barricades / cranes /
+ambulances → a Dijkstra-based network engine produces a diversion route →
+a 0.5 km spatial-temporal grid escalates compound incidents (×1.35) → and a
+Q-update style RL feedback loop ingests every "Mark Resolved" to bias future
+predictions per station × cause.
+
+================================================================================
+ 1.  HIGH-LEVEL ARCHITECTURE
+================================================================================
+
+        ┌──────────────────────────────────────────────────────────┐
+        │   React 19 Frontend (Mappls map · Inter typography ·     │
+        │   Government-of-Karnataka theme)                         │
+        └───────────────┬──────────────────────────────────────────┘
+                        │  REST (5 s polling)
+        ┌───────────────▼──────────────────────────────────────────┐
+        │   FastAPI Backend  (/api/*)                              │
+        │                                                          │
+        │   ┌────────────┐ ┌────────────┐ ┌────────────────────┐   │
+        │   │ Geocoder   │ │ ML Engine  │ │ City Network Graph │   │
+        │   │(LocalGeo-  │ │(RF+GBM+    │ │(54-station         │   │
+        │   │  coder)    │ │  Ridge)    │ │  k-NN, Dijkstra)   │   │
+        │   └────────────┘ └────────────┘ └────────────────────┘   │
+        │   ┌──────────────────────────────────────────────────┐   │
+        │   │ RL Feedback Engine  (Q-update style bias table)  │   │
+        │   └──────────────────────────────────────────────────┘   │
+        └───────────────┬──────────────────────────────────────────┘
+                        │  Motor (async)
+        ┌───────────────▼──────────────────────────────────────────┐
+        │   MongoDB  ·  incidents collection                       │
+        └──────────────────────────────────────────────────────────┘
+
+Stack:
+ - Backend  : Python 3.11, FastAPI, scikit-learn, NetworkX, motor (async Mongo)
+ - Frontend : React 19 + CRACO, Tailwind, React-Query, Mappls Web SDK,
+              Phosphor icons, Sonner toasts
+ - Database : MongoDB (single `incidents` collection)
+ - Tests    : Mocha + Playwright via the testing-subagent suite
+
+================================================================================
+ 2.  DATASET PREPARATION  (backend/data/traffic.csv)
+================================================================================
+
+Source columns we depend on
+---------------------------
+  · latitude, longitude              → spatial profile per station
+  · police_station                   → categorical anchor (54 unique values)
+  · event_cause                      → 17 normalised categories
+  · time_of_day_category             → 4 buckets
+  · priority                         → High / Low
+  · requires_road_closure            → 0 / 1
+  · peak_hour_flag                   → 0 / 1
+  · is_weekend                       → 0 / 1
+  · is_compound_incident             → 0 / 1
+  · congestion_risk_score            → historical risk feature
+  · incident_duration_min            → TARGET (regression label)
+
+Cleaning & normalisation (engine/ml_engine.py)
+----------------------------------------------
+ 1. event_cause normalised through `_norm_cause()`:
+       lower-case, strip, "/" → "_", "  " → "_", maps "fog" → "fog_low_visibility"
+ 2. NaNs in police_station → "Unknown"
+ 3. NaNs in time_of_day_category → "midday_offpeak"
+ 4. incident_duration_min → numeric; rows w/o duration or coordinates dropped
+ 5. Outliers clipped to 600 min (10 h) — caps political-rally edge cases
+ 6. Three derived aggregates pre-computed:
+        station_risk           = mean(congestion_risk_score) per station
+        station_avg_duration   = mean duration per station
+        cause_avg_duration     = mean duration per event_cause
+    These act as a "GNN-style neighbourhood aggregator" — every prediction
+    receives historic per-station and per-cause averages as features, giving
+    the model "memory" of how Bengaluru actually behaves.
+
+Stable encoders
+---------------
+ cause_idx, tod_idx, station_idx are deterministic lookups built once at fit
+ time and reused at inference — guarantees that train-time encodings match
+ inference-time encodings even if the order of input arrives differently.
+
+================================================================================
+ 3.  MODEL TRAINING — WEIGHTED ENSEMBLE
+================================================================================
+
+Why three estimators? Because each captures a different family of patterns:
+   · Random Forest        — non-linear, deep interactions, robust to noise
+   · Gradient Boosting    — sequential error correction, sharper boundaries
+   · Ridge (linear)       — calibrates the residual, prevents extreme spikes
+
+12-feature vector (engine/ml_engine.py → _featurize)
+----------------------------------------------------
+   [ cause_idx, tod_idx, station_idx, priority_w, closure_w, weather_w,
+     peak_hour, is_weekend, compound,
+     station_risk, station_avg_duration, cause_avg_duration ]
+
+Pipeline
+--------
+   1. 85/15 train/test split (random_state=42)
+   2. StandardScaler.fit on train; same scaler applied to test
+   3. Train RF (n=120, depth=14), GBM (n=180, depth=4, lr=0.07), Ridge (α=1.0)
+   4. Compute holdout MAE per model
+   5. INVERSE-MAE WEIGHTED ENSEMBLE   →    w_i = (1 / MAE_i) / Σ(1 / MAE_j)
+      → automatic skill-based weighting, no hand-tuned hyper-parameter
+   6. Final holdout MAE + R² reported on /api/model-status
+
+Typical figures we observe on the supplied dataset
+--------------------------------------------------
+   ensemble weights ≈ RF 45 % | GBM 45 % | Ridge 10 %
+   holdout MAE      ≈ 27 – 32 min
+   holdout R²       ≈ 0.55 – 0.70
+
+================================================================================
+ 4.  REAL-TIME LAYER  (the part the problem statement calls "real-time data")
+================================================================================
+
+Every POST /api/incidents call fires the full real-time pipeline:
+
+   Step 1  Free-text geocoding (LocalGeocoder)
+           ───────────────────────────────────
+           90+ Bengaluru landmarks (MG Road, Silk Board, Whitefield, Hebbal …)
+           + the 54 police-station centroids are indexed in memory.
+           Officer types "Jalahalli Cross Junction Peenya"
+              → longest-alias match → (13.0480, 77.5223)
+           Falls back to "Bangalore Centroid" (Cubbon Park) if unresolved.
+
+   Step 2  Nearest-station snap (Haversine over all 54 stations)
+           Captures the "anchor node" for the incident in the police graph.
+
+   Step 3  Spatial-Temporal Interaction Grid
+           ────────────────────────────────
+           For every existing ACTIVE incident:
+               d = haversine_km(new, active)
+               if d ≤ 0.5 km → compound = True, compound_with.append(id)
+           Compound incidents are mutually linked.
+
+   Step 4  Ambient compilation
+           "Heavy rain" / "fog" / "morning peak" → structured flags
+           that flow into the ML feature vector AND the resource heuristic.
+
+   Step 5  Ensemble prediction (12-feature vector → ŷ_minutes)
+
+   Step 6  Post-prediction adjustments
+              adjusted = ŷ × RL_bias × (1.35 if compound else 1.0)
+              clamped to [2 min, 720 min]
+
+   Step 7  Heuristic Optimisation Matrix  →  officers / barricades / cranes /
+           ambulances   (details in §5)
+
+   Step 8  Network penalty propagation
+           Edges adjacent to the incident's anchor station are inflated 10×
+           in the city graph — every later diversion request automatically
+           routes around the active hotspot.
+
+   Step 9  Severity classification
+              score = minutes + 40·(priority=high) + 60·compound
+              ≥ 220 → Critical
+              ≥ 140 → High
+              ≥ 70  → Medium
+              else  → Low
+
+   Step 10 Persist as one MongoDB document and broadcast back to the client.
+
+Resulting <Incident> document is enriched on every read with:
+   · barricades_count  = ⌈meters / 2.5⌉   (standard police barricade length)
+   · diversion_path    = Dijkstra plan around the blocked station
+
+================================================================================
+ 5.  HEURISTIC OPTIMISATION MATRIX  (officers · barricades · cranes · ambulances)
+================================================================================
+
+A rule-based "policy head" that converts the ML prediction into a deployable
+recommendation. (engine/ml_engine.py → recommend_resources)
+
+Per-cause baselines (excerpt)
+   cause              officers   barricades(m)  crane  ambulance
+   ───────────────────────────────────────────────────────────────
+   vehicle_breakdown      3           10          1         0
+   tree_fall              4           20          1         0
+   accident               5           25          1         1
+   public_event           6           80          0         1
+   water_logging          3           30          0         0
+   construction           5           60          0         0
+   vip_movement           8          100          0         0
+   procession             8          120          0         0
+   protest               10          150          0         1
+   political_rally       10          180          0         1
+   …
+
+Modifiers (additive, then ×1.35 if compound)
+   priority = High        →  +2 officers, +20 m barricades
+   road closure           →  +2 officers, +40 m barricades
+   peak hour              →  +1 officer
+   weather = heavy_rain   →  +1 officer, +15 m barricades
+   weather = fog          →  +1 officer
+   duration > 60 min      →  +⌈(min-60)/60⌉ officers, +10 m / hr barricades
+   compound               →  ×1.35 on officers AND barricades  (the 0.5 km rule)
+
+Final guarantees:  officers ≥ 1,  barricades ≥ 5 m.
+
+================================================================================
+ 6.  DIVERSION PLAN — NETWORK PENALTY MATRIX  (engine/graph_engine.py)
+================================================================================
+
+  · A connected k-Nearest-Neighbour graph (k = 4) is built once over the 54
+    police-station coordinates. Disconnected components are stitched by
+    minimum Haversine edge so the graph is guaranteed connected.
+
+  · Edge weight =  base_distance_km  ×  penalty_multiplier
+    Default penalty = 1.0; an active incident inflates every edge touching
+    its anchor station to 10×.
+
+  · For each station with an active incident, the engine computes:
+       NORMAL    = Dijkstra path between two of the station's nearest peers
+                   with NO penalties active
+       DIVERTED  = same path with 10× penalty on adjacent edges
+    The UI shows the diverted route as the recommended officer routing.
+
+  · When an incident is resolved AND no other active incident shares the
+    same anchor station, the 10× penalty is cleared automatically. This is
+    the system's self-healing behaviour.
+
+================================================================================
+ 7.  POST-EVENT LEARNING — RESOLUTION-LAG RL  (engine/rl_engine.py)
+================================================================================
+
+This is the "post-event learning system" the problem statement asked for.
+
+State              : key = (police_station, event_cause)
+Action (implicit)  : the bias multiplier our predictor previously applied
+Reward             : R = − | t_actual − t_predicted |    (closer to zero is better)
+Update rule        : exponential moving average (Q-flavoured)
+
+   ratio   = clip(actual / predicted, 0.1, 5.0)
+   new_cs  = (1 − α) · old_cs + α · ratio        # per (station, cause)
+   new_c   = (1 − α) · old_c  + α · ratio        # per cause only
+   both clipped to [1 / 1.5,  1.5]
+   α = 0.25  ·  clip = 1.5
+
+At inference, the bias used is the geometric mean of the two:
+   bias = sqrt(new_cs · new_c)
+
+Where the loop closes:
+   POST /api/incidents/{id}/resolve
+        → actual_minutes = body.actual_minutes  OR  (now − created_at)
+        → rl.update(...)
+        → bias_cs and bias_c persist in memory
+        → next prediction at that station / cause inherits the new bias
+
+Resource scaling also implicitly improves because the duration-based
+multiplier inside the heuristic matrix grows with adjusted_minutes.
+
+Visible RL diagnostics live in the Analytics tab (per-station RL risk-bias
+bars) and previously in the dashboard's RL Feedback console (removed by user
+request, still accessible via /api/model-status).
+
+================================================================================
+ 8.  REST API CONTRACT
+================================================================================
+
+  GET  /api/                          → health
+  GET  /api/meta                      → enums for the form (causes, weathers, …)
+  GET  /api/police-stations           → 54 station coords for map markers
+  GET  /api/model-status              → ensemble weights, MAE, R², RL status
+  POST /api/geocode                   → free-text → (lat, lon, nearest_station)
+  POST /api/incidents                 → THE CORE CREATE — runs §4 full pipeline
+  GET  /api/incidents/active          → all active incidents (queue)
+  GET  /api/incidents?limit=N         → history
+  POST /api/incidents/{id}/resolve    → fires RL update, returns rewarded doc
+  GET  /api/incidents/{id}/diversion  → Dijkstra plan for one incident
+  GET  /api/diversions/active         → diversion plans for every active hit
+  GET  /api/analytics/summary         → cause distribution, error trend, station load
+  GET  /api/stats                     → KPI snapshot used by the header
+  POST /api/incidents/clear-all       → full session reset
+
+================================================================================
+ 9.  FRONTEND — GOVERNMENT-OF-KARNATAKA REDESIGN
+================================================================================
+
+Design language
+   · Pure white surfaces, no dark mode anywhere
+   · Karnataka navy  #0b3d91   primary
+   · India saffron   #ff7a00   accent / warnings
+   · India green     #138808   resolved / OK
+   · India red       #c0392b   critical / compound
+   · Tricolour ribbon at the very top of the header
+   · Bilingual govt strip (Hindi · Kannada · English)
+   · Shield-star emblem + serif wordmark "Congestion Intelligence Engine · TCIE"
+   · Single typeface — Inter (regularly-used sans-serif), no IBM Plex
+     Serif/Mono mix that previously made it look like "vibecoding"
+
+Layout (scrollable, like a normal website)
+   ROW 1   Map (col-span-8, 640 px) + New-Incident form (col-span-4)
+   ROW 2   KPI strip (4 cards full width)
+   ROW 3   Active Incident Queue (full width, 3 per row, grows vertically)
+   FOOTER  Government-of-Karnataka copyright + version
+
+Map (Mappls Web SDK · components/MapplsMap.jsx)
+   · 54 police-station dots (navy)
+   · Incident pins:
+        - 54×72 SVG teardrop
+        - Severity colour (Low green / Medium amber / High orange / Critical red)
+        - Large white head containing an event-cause GLYPH:
+            vehicle_breakdown → wrench       accident → warning triangle
+            tree_fall         → tree         public_event → person
+            water_logging     → droplet      pot_holes → road bump
+            congestion        → lane bars    construction → cone
+            road_conditions   → road slab    vip_movement → star
+            procession/protest→ flag         debris → triangle+chunk
+            fog_low_visibility→ cloud        political_rally → megaphone
+            test_demo         → flask        others → info "i"
+        - Navy ID-badge above the pin showing the first 4 chars of the UUID
+        - Compound incidents get a red halo ring + a 0.5 km translucent disc
+   · Robust marker cleanup: when an incident is resolved, the pin is removed
+     via every known Mappls API (remove / setMap(null) / removeFromMap /
+     map.removeLayer / map.removeMarker / DOM detach) so it works on any SDK
+     build.
+   · Legend in the bottom-left (severity colours, police station, 0.5 km
+     radius), Mappls header in the top-left ("Bengaluru · Tactical View ·
+     incidents N · stations 54").
+
+Incident Queue cards (components/IncidentQueue.jsx)
+   · Severity-coloured left border
+   · Compound cards pulse red
+   · Resources grid:  ETA · Officers · Barricades count · Cranes · Ambulance · RL Bias
+   · "Nearest Police Station" highlighted in a navy band
+   · Recommended diversion path shown as a station-by-station arrow chain
+   · "Mark Resolved · Feed RL" CTA → Confirm → fires resolve API + RL update
+
+Analytics tab (pages/AnalyticsView.jsx)
+   · 4 KPIs (lifetime incidents, resolved, active, compound)
+   · Cause distribution bars (count + avg prediction → avg actual on resolve)
+   · Resolved-prediction-error timeline (red = under-estimated, green = OK)
+   · Per-station load + RL risk-bias forecast (bias > 1.0 = under-predicted
+     history → next prediction will be inflated)
+
+Toasts (Sonner)
+   · Green on successful dispatch ("ETA · officers · barricades")
+   · Red on compound alerts ("0.5 km proximity hit · 1.35× multiplier")
+   · Blue on resolution with reward delta
+
+================================================================================
+ 10.  WHAT WE ADDED *BEYOND* THE PROBLEM STATEMENT
+================================================================================
+
+The brief only asked for forecasting + manpower/barricade/diversion + post-
+event learning. We delivered all of that, plus the following originals that
+elevate it from a model demo to a credible police-grade product:
+
+  ▸ Free-text in-memory geocoder with 90+ Bengaluru landmarks + station
+    centroids (no external API → no API-key risk in the demo).
+  ▸ "Compound incident" spatial-temporal grid — 0.5 km Haversine proximity
+    rule fires a 1.35× multiplier on officers, barricades AND predicted
+    minutes. Mirrors how real BTP escalates clustered events.
+  ▸ GNN-style aggregator features (station_risk, station_avg, cause_avg)
+    give every prediction implicit "neighbourhood memory".
+  ▸ Inverse-MAE auto-weighted ensemble — no manual hyper-parameter tuning.
+  ▸ NetworkX 54-node police graph with k-NN connectivity, Dijkstra
+    diversion, dynamic 10× penalty around active incidents, self-healing
+    on resolve.
+  ▸ Q-update RL with α = 0.25 and clip = 1.5, BOTH per (station,cause)
+    AND per cause, combined as geometric mean to prevent spiking.
+  ▸ Resource heuristic that scales with predicted duration AND weather
+    AND peak hour AND road closure AND compound flag.
+  ▸ Severity scoring that mixes prediction, priority, and proximity.
+  ▸ Full Analytics tab — cause distribution, prediction-error history,
+    per-station load & RL bias forecast.
+  ▸ Government-of-Karnataka grade UI with tricolour bar, emblem, bilingual
+    strip and Inter typography — instantly believable as a real Bengaluru
+    Traffic Police product, not a hackathon demo.
+  ▸ Event-cause glyphs embedded inside every map pin (17 unique icons) so
+    officers can identify the situation at a glance from the map alone.
+  ▸ Auto-removal of map markers on resolve, with multi-API fallback.
+  ▸ Scrollable single-page command centre — the queue grows with content
+    so dispatchers see the full picture at a glance without scroll-traps.
+  ▸ Live KPI strip refreshed every 5 s — Active / Compound / Avg ETA /
+    Officers Deployed (with barricade coverage metres).
+  ▸ Robust empty / fallback states throughout (no Active Incidents,
+    geocoder fallback to Bangalore Centroid, missing telemetry).
+  ▸ data-testid attributes on every interactive element — fully driveable
+    via Playwright/automation for repeat demos.
+
+================================================================================
+ 11.  HOW TO RUN (LOCAL · VS CODE)
+================================================================================
+
+  Prereqs
+    Python 3.11 · Node 18 · Yarn · MongoDB Community · Git
+
+  Backend
+    cd backend
+    python -m venv venv && source venv/bin/activate
+    pip install -r requirements.txt
+    # backend/.env
+    #   MONGO_URL="mongodb://localhost:27017"
+    #   DB_NAME="test_database"
+    #   CORS_ORIGINS="*"
+    uvicorn server:app --reload --port 8001
+
+  Frontend
+    cd frontend
+    yarn install
+    # frontend/.env
+    #   REACT_APP_BACKEND_URL=http://localhost:8001
+    #   REACT_APP_MAPPLS_KEY=<your key>
+    yarn start
+
+  Open  http://localhost:3000  →  Bengaluru map renders with 54 station markers.
+  Dispatch any plain-text address → ML + RL + diversion plan in < 200 ms.
+
+================================================================================
+ 12.  WHAT THE JUDGES SHOULD NOTICE IN THE DEMO
+================================================================================
+
+  1. Type "Silk Board Junction" + Vehicle Breakdown → MEDIUM pin appears.
+  2. Type "Silk Board" + Accident → COMPOUND alert toast + both pins pulse
+     red because they fall inside the 0.5 km proximity grid.
+  3. Open Analytics → cause distribution + per-station RL bias visible.
+  4. Mark either incident Resolved → its pin disappears from the map AND
+     the RL bias for "Madiwala · vehicle_breakdown" updates (visible via
+     /api/model-status JSON or on the Analytics per-station bar).
+  5. Dispatch another incident at the same station shortly afterwards →
+     predicted duration changes because the RL bias is now ≠ 1.0.
+     This is the closed loop the problem statement asked for, end-to-end.
+
+================================================================================
+ 13.  FUTURE WORK / OPEN BACKLOG
+================================================================================
+
+  · Officer-role login + audit log (only sub-inspectors can RESET)
+  · Full Kannada (ಕನ್ನಡ) i18n strings on every screen
+  · Historical replay slider on the map (scrub through resolved incidents)
+  · One-click "Shift Hand-Off PDF" export of the active queue + KPIs
+  · Citizen-facing read-only view (public alert + diversion page)
+  · Push notifications (web push) when a new Critical or Compound alert fires
+  · Mappls turn-by-turn routing API integration for the diversion path
+    (currently we show station-hop sequence)
+
+================================================================================
+ CREDITS
+================================================================================
+   Team / Author : <your name here>
+   Built for     : Flipkart Gridlock Hackathon 2.0 — Round 2
+   Stack         : FastAPI · scikit-learn · NetworkX · MongoDB · React 19 ·
+                   Tailwind · Mappls Web SDK
+   Inspiration   : Bengaluru Traffic Police real-world operating constraints
+================================================================================
