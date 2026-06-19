@@ -6,16 +6,16 @@ function Block({ label, value, sub, color, accent, icon: Icon, testId }) {
   return (
     <div
       data-testid={testId}
-      className="gov-card p-3 flex flex-col gap-1 hover:shadow-md transition-shadow"
+      className="gov-card p-3 flex flex-col gap-1 hover:shadow-md transition-shadow min-h-0"
     >
       <div className="flex items-center justify-between">
         <span className="eyebrow">{label}</span>
         <Icon size={14} className={accent || color} weight="fill" />
       </div>
-      <div className={`font-serif text-[28px] font-bold tracking-tight leading-none ${color}`}>
+      <div className={`text-[30px] font-bold tracking-tight leading-none ${color} tabular-nums`}>
         {value}
       </div>
-      {sub && <div className="text-[10px] font-mono text-[var(--text-muted)] mt-0.5">{sub}</div>}
+      {sub && <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{sub}</div>}
     </div>
   );
 }
@@ -23,7 +23,7 @@ function Block({ label, value, sub, color, accent, icon: Icon, testId }) {
 export default function KpiStrip({ stats, compoundCount }) {
   const s = stats || {};
   return (
-    <section className="grid grid-cols-2 gap-3">
+    <section className="grid grid-cols-2 gap-3 h-full" style={{ gridAutoRows: "1fr" }}>
       <Block
         testId={TCIE.kpiActive}
         label="Active Incidents"

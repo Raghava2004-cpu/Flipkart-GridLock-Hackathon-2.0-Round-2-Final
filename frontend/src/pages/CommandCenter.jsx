@@ -8,7 +8,6 @@ import {
 import IncidentForm from "@/components/IncidentForm";
 import IncidentQueue from "@/components/IncidentQueue";
 import KpiStrip from "@/components/KpiStrip";
-import RLTerminal from "@/components/RLTerminal";
 import MapplsMap from "@/components/MapplsMap";
 import HeaderBar from "@/components/HeaderBar";
 import AnalyticsView from "@/pages/AnalyticsView";
@@ -17,7 +16,6 @@ const REFRESH_MS = 5000;
 
 export default function CommandCenter() {
   const qc = useQueryClient();
-  const [pulse, setPulse] = useState(false);
   const [tab, setTab] = useState("live");
 
   const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: fetchMeta });
@@ -28,9 +26,8 @@ export default function CommandCenter() {
   const { data: stats } = useQuery({
     queryKey: ["stats"], queryFn: fetchStats, refetchInterval: REFRESH_MS,
   });
-  const { data: modelStatus } = useQuery({
-    queryKey: ["model"], queryFn: fetchModelStatus, refetchInterval: REFRESH_MS,
-  });
+  // Model status is still fetched (Analytics tab uses it) but no longer rendered here.
+  useQuery({ queryKey: ["model"], queryFn: fetchModelStatus, refetchInterval: REFRESH_MS });
 
   const createMut = useMutation({
     mutationFn: createIncident,
@@ -61,8 +58,6 @@ export default function CommandCenter() {
   const resolveMut = useMutation({
     mutationFn: ({ id, actual }) => resolveIncident(id, actual),
     onSuccess: (d) => {
-      setPulse(true);
-      setTimeout(() => setPulse(false), 700);
       qc.setQueryData(["active"], (prev = []) => prev.filter((p) => p.id !== d.id));
       qc.invalidateQueries({ queryKey: ["active"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
@@ -96,14 +91,16 @@ export default function CommandCenter() {
         onTabChange={setTab}
       />
       {tab === "live" ? (
-        <div className="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden min-h-0"
-             style={{ gridTemplateRows: "minmax(0, 1fr) minmax(0, 1fr)" }}>
-          {/* TOP-LEFT — Map (big) */}
+        <div
+          className="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden min-h-0"
+          style={{ gridTemplateRows: "minmax(0, 1.55fr) minmax(0, 1fr)" }}
+        >
+          {/* TOP-LEFT — Map (now taller, ~60% of viewport) */}
           <main className="col-span-8 row-span-1 relative rounded-md overflow-hidden gov-card min-h-0">
             <MapplsMap incidents={active} stations={stations} />
           </main>
 
-          {/* TOP-RIGHT — Incident form (auto-fills row, no scroll) */}
+          {/* TOP-RIGHT — Incident form (auto-fills the taller row → Predict button very prominent) */}
           <aside className="col-span-4 row-span-1 min-h-0">
             <IncidentForm
               meta={meta}
@@ -112,7 +109,7 @@ export default function CommandCenter() {
             />
           </aside>
 
-          {/* BOTTOM-LEFT — Active Queue (wide) */}
+          {/* BOTTOM-LEFT — Active Queue */}
           <section className="col-span-8 row-span-1 overflow-hidden min-h-0">
             <IncidentQueue
               incidents={active}
@@ -121,10 +118,9 @@ export default function CommandCenter() {
             />
           </section>
 
-          {/* BOTTOM-RIGHT — KPIs + RL terminal (auto-fills row) */}
-          <aside className="col-span-4 row-span-1 flex flex-col gap-3 overflow-hidden min-h-0">
+          {/* BOTTOM-RIGHT — KPIs only (RL feedback loop removed per request) */}
+          <aside className="col-span-4 row-span-1 min-h-0">
             <KpiStrip stats={stats} compoundCount={compoundCount} />
-            <RLTerminal modelStatus={modelStatus} pulse={pulse} />
           </aside>
         </div>
       ) : (
