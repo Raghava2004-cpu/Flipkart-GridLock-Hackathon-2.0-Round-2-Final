@@ -42,3 +42,11 @@ Resume the Flipkart Gridlock Hackathon 2.0 (Round 2) project. The backend (FastA
 - IncidentForm: redesigned to fill its container with `flex-1` spacer so the Predict & Dispatch CTA sits at the bottom of the panel without internal scrolling, regardless of viewport height.
 - CommandCenter grid: changed to explicit `gridTemplateRows: minmax(0,1fr) minmax(0,1fr)` + `min-h-0` on every cell — sections now auto-adjust to any viewport size.
 - Typography: dropped IBM Plex Serif and IBM Plex Mono, unified everything to **Inter**. `.font-mono` and `.font-serif` utility aliases retained (mapped to Inter) for safety.
+
+## Iteration 5 (Jan 2026) — Documentation
+- Created /app/APPROACH.txt (25 KB, 13 sections) — complete technical approach doc
+  covering dataset preparation, ensemble training, real-time pipeline,
+  heuristic optimisation matrix, Dijkstra diversion engine, RL post-event
+  learning, frontend redesign, what-we-added-beyond-the-brief, run instructions
+  and judge demo script. Placed at repo root so it pushes to GitHub alongside
+  the code.
