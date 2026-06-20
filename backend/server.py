@@ -41,6 +41,17 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 app = FastAPI(title="Traffic Congestion Intelligence Engine")
+@app.get("/")
+async def root():
+    return {
+        "status": "online",
+        "service": "Traffic Congestion Intelligence Engine",
+    }
+
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
 api = APIRouter(prefix="/api")
 
 # ---------- ML / Engine singletons ----------
